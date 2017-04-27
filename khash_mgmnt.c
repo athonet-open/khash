@@ -557,7 +557,7 @@ EXPORT_SYMBOL(khash_stats_get);
 int
 khash_init_module(void)
 {
-	printk(KERN_INFO "KHASH module loaded\n");
+	printk(KERN_INFO "[%s] module loaded\n", KHASH_VERSION_STR);
 
 	return 0;
 }
@@ -565,7 +565,7 @@ khash_init_module(void)
 void
 khash_exit_module(void)
 {
-	printk(KERN_INFO "KHASH module unloaded\n");
+	printk(KERN_INFO "[%s] module unloaded\n", KHASH_VERSION_STR);
 }
 
 module_init(khash_init_module);
