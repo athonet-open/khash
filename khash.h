@@ -25,7 +25,7 @@
 
 #define KHASH_NAME  "KHASH"
 #define KHASH_MAJOR 1
-#define KHASH_MINOR 1
+#define KHASH_MINOR 2
 #define KHASH_PATCH 0
 #define KHASH_STR_H(x) #x
 #define KHASH_STR(x) KHASH_STR_H(x)
