@@ -63,7 +63,11 @@ uint64_t khash_entry_footprint(void);
 
 int khash_size(khash_t *khash);
 int khash_addentry(khash_t *khash, khash_key_t hash, void *val, gfp_t flags);
-int khash_addentry2(khash_t *khash, khash_item_t *item);
+
+khash_item_t *khash_item_new(khash_key_t hash, void *value, gfp_t flags);
+void khash_item_del(khash_item_t *item);
+int khash_add_item(khash_t *khash, khash_item_t *item);
+
 int khash_rementry(khash_t *khash, khash_key_t hash, void **retval);
 int khash_lookup(khash_t *khash, khash_key_t hash, void **retval);
 void khash_foreach(khash_t *khash, khfunc func, void *data);

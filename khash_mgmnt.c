@@ -40,7 +40,7 @@
 #define KHASH_FOR_EACH_POSSIBLE hash_for_each_possible_rcu
 #define KHASH_FOR_EACH          hash_for_each_rcu
 
-__always_inline static khash_item_t *
+khash_item_t *
 khash_item_new(khash_key_t hash, void *value, gfp_t flags)
 {
 	khash_item_t *item = NULL;
@@ -54,8 +54,9 @@ khash_item_new(khash_key_t hash, void *value, gfp_t flags)
 
 	return (item);
 }
+EXPORT_SYMBOL(khash_item_new);
 
-__always_inline static void
+void
 khash_item_del(khash_item_t *item)
 {
 	if (unlikely(!item))
@@ -63,6 +64,7 @@ khash_item_del(khash_item_t *item)
 
 	kfree(item);
 }
+EXPORT_SYMBOL(khash_item_del);
 
 __always_inline static void *
 khash_item_value_get(khash_item_t *item)
@@ -320,7 +322,7 @@ khash_rementry_fail:
 EXPORT_SYMBOL(khash_rementry);
 
 int
-khash_addentry2(khash_t *khash, khash_item_t *item)
+khash_add_item(khash_t *khash, khash_item_t *item)
 {
 	khash_item_t *old_item = NULL;
 
@@ -349,6 +351,7 @@ khash_addentry2(khash_t *khash, khash_item_t *item)
 
 	return (0);
 }
+EXPORT_SYMBOL(khash_add_item);
 
 int
 khash_addentry(khash_t *khash, khash_key_t hash, void *value, gfp_t flags)
@@ -362,7 +365,7 @@ khash_addentry(khash_t *khash, khash_key_t hash, void *value, gfp_t flags)
 	if (unlikely(!item))
 		return (-1);
 
-	if (khash_addentry2(khash, item) < 0) {
+	if (khash_add_item(khash, item) < 0) {
 		kfree(item);
 		return (-1);
 	}
