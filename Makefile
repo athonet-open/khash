@@ -115,6 +115,6 @@ install_files: $(MOD_NAME).ko
 	@ install -m 755 Module.symvers $(DESTDIR)/lib/modules/$(shell uname -r)/extra/slab_pdc.symvers
 	@ /sbin/depmod
 
-install: install_files
-	@ rmmod $(MOD_NAME) || :
-	@ modprobe $(MOD_NAME)
+install: 
+	@make dkms_deb
+	@dpkg -i $(PRJ_NAME)"-dkms_"$(VERSION)_all.deb
