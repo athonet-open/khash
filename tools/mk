@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+rootpath=$(git rev-parse --show-toplevel)
+cd $rootpath
+
+case "${1}" in
+    install)
+        make dkms_deb
+        dpkg -i $rootpath/*.deb
+         ;;
+    mkdeb)
+        make dkms_deb
+        ;;
+    *)
+        exit 127
+        ;;
+esac
