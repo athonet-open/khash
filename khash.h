@@ -26,7 +26,7 @@
 #define KHASH_NAME  "KHASH"
 #define KHASH_MAJOR 1
 #define KHASH_MINOR 3
-#define KHASH_PATCH 1
+#define KHASH_PATCH 2
 #define KHASH_STR_H(x) #x
 #define KHASH_STR(x) KHASH_STR_H(x)
 #define KHASH_VERSION(a, b, c) (((a) << 24) + ((b) << 16) + (c))
