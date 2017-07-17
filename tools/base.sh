@@ -29,6 +29,7 @@ INSTALL=false
 CHECKOUT=true
 DEBS=false
 
+
 while getopts "zpifd:h" OPTION
 do
 	case $OPTION in
@@ -57,9 +58,19 @@ if [[ $HELP == true ]];then
     usage
 fi
 
+function no_root {
+    message=$1
+    if [[ $EUID -eq 0 ]];then
+        echo "$message"
+        exit 127
+    fi
+}
+
+
 if [[ -e "$INFILE" && $CHECKOUT == true ]];then
 
     if [[ ! -d "$OUTDIR" ]];then
+        no_root "[!] clone must be done as non root user"
         mkdir -p $OUTDIR
     fi
 
@@ -76,6 +87,8 @@ if [[ -e "$INFILE" && $CHECKOUT == true ]];then
         created=false
 
         if [[ ! -d "$repo" ]];then
+            no_root "[!] clone must be done as non root user"
+
             echo "[$ROOTNAME] Cloning Repository $name $giturl vs $version"
             git clone --branch "$version" --single-branch "$giturl" "$repo"   # clone+checkout
             created=true
@@ -101,7 +114,7 @@ if [[ -e "$INFILE" && $CHECKOUT == true ]];then
         if [ -f $repo/deps ];then
             echo "[$ROOTNAME: $name] Found deps: recurring..."
             cd $repo
-            $ROOTPATH/tools/base.sh -d $OUTDIR
+            bash $ROOTPATH/tools/base.sh -d $OUTDIR
             cd $before_jump
         fi
 
@@ -114,47 +127,49 @@ if [[ -e "$INFILE" && $CHECKOUT == true ]];then
 fi
 
 
-# since checkout is optional fail if structure not consistent
-if [[ ! -d "$OUTDIR" || ! -e "$INFILE" || ! -e "$OUTDIR/deps_order" ]];then
-    echo "[!] deps.d structure not consistent"
-    exit 127
-fi
-# must be root for next steps
-if [[ $EUID -ne 0 ]]; then
-    echo "[!] you must be root to install the deps"
-    exit 127
-fi
+if [[ $INSTALL == true || $DEBS == true ]];then
+    # since checkout is optional fail if structure not consistent
+    if [[ ! -d "$OUTDIR" || ! -e "$INFILE" || ! -e "$OUTDIR/deps_order" ]];then
+        echo "[!] deps.d structure not consistent"
+        exit 127
+    fi
 
+    # must be root for next steps
+    if [[ $EUID -ne 0 ]]; then
+        echo "[!] you must be root to install the deps"
+        exit 127
+    fi
 
-# install
-if [[ $INSTALL == true ]];then
-    while read repo; do
-        cd $OUTDIR/$repo
+    # install
+    if [[ $INSTALL == true ]];then
+        while read repo; do
+            cd $OUTDIR/$repo
 
-        echo "[$ROOTNAME: $repo] mk install"
-        bash tools/mk install || err=1
+            echo "[$ROOTNAME: $repo] mk install"
+            bash tools/mk install || echo "[!] $repo/tool/mk not present"
 
-        cd -
-    done < $OUTDIR/deps_order
-fi
+            cd -
+        done < $OUTDIR/deps_order
+    fi
 
-# debs
-if [[ $DEBS == true ]];then
-    while read repo; do
-        cd $OUTDIR/$repo
+    # debs
+    if [[ $DEBS == true ]];then
+        while read repo; do
+            cd $OUTDIR/$repo
 
-        echo "[$ROOTNAME: $repo] mk mkdeb"
-        bash tools/mk mkdeb || echo "[!] $repo/tool/mk not present"
+            echo "[$ROOTNAME: $repo] mk mkdeb"
+            bash tools/mk mkdeb || echo "[!] $repo/tool/mk not present"
 
-        cd -
-    done < $OUTDIR/deps_order
+            cd -
+        done < $OUTDIR/deps_order
 
-    debs=$(find $OUTDIR -name '*.deb')
+        debs=$(find $OUTDIR -name '*.deb')
 
-    for deb in $debs;do
-        echo "[$ROOTNAME self] moving $deb in $OUTDIR"
-        mv $deb $OUTDIR
-    done
+        for deb in $debs;do
+            echo "[$ROOTNAME self] moving $deb in $OUTDIR"
+            mv $deb $OUTDIR
+        done
+    fi
 fi
 
 echo "[$ROOTNAME: self] ok"
