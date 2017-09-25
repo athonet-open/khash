@@ -94,7 +94,7 @@ __always_inline int
 khash_key_match(khash_key_t *a, khash_key_t *b)
 {
 	if (a->key == b->key)
-		return (a->__key._64 == b->__key._64);
+		return (!memcmp(a->__key._64, b->__key._64, _64WORDS_NUM));
 
 	return (0);
 }
@@ -118,12 +118,12 @@ khash_hash_ipaddr(uint16_t sa_family, uint32_t *addr)
 		return (hash);
 
 	if (sa_family == AF_INET) {
-		hash.__key._64 = *addr;
+		hash.__key._64[0] = *addr;
 	} else {
 		hash.__key._32[0] = addr[0];
 		hash.__key._32[1] = addr[1];
 	}
-	hash.key = hash_64(hash.__key._64, 32);
+	hash.key = hash_64(hash.__key._64[0], 32);
 
 	return (hash);
 }

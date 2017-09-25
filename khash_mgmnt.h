@@ -33,12 +33,13 @@
 
 #include <linux/jhash.h>
 
+#define _64WORDS_NUM (3)
 typedef struct {
 	union {
-		u8 _8[8];
-		u16 _16[4];
-		u32 _32[2];
-		u64 _64;
+		u8   _8[8 * _64WORDS_NUM];
+		u16 _16[4 * _64WORDS_NUM];
+		u32 _32[2 * _64WORDS_NUM];
+		u64 _64[_64WORDS_NUM];
 	} __key;
 	u32 key;
 } khash_key_t;
@@ -75,36 +76,104 @@ void khash_foreach(khash_t *khash, khfunc func, void *data);
 u32 khash_bck_size_get(khash_t *kh);
 struct hlist_head *khash_bck_get(khash_t *kh, uint32_t idx);
 
+__always_inline static u32
+hash_128(uint64_t _u64[2])
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	unsigned long x = _u64[0] ^ _u64[1];
+
+	return (u32)(x ^ (x >> 32));
+#else
+	uint32_t *_u32 = (u32 *)_u64;
+	return (__force u32)(_u32[0] ^ _u32[1] ^ _u32[2] ^ _u32[3]);
+#endif
+}
+
+/*
+ *
+ */
+__always_inline static khash_key_t *
+__khash_hash_u32(khash_key_t *key, u32 _u32)
+{
+	key->__key._64[0] = _u32;
+	key->key = hash_64(key->__key._64[0], 32);
+
+	return (key);
+}
+
+__always_inline static khash_key_t *
+__khash_hash_u64(khash_key_t *key, u64 _u64)
+{
+	key->__key._64[0] = _u64;
+	key->key = hash_64(key->__key._64[0], 32);
+
+	return (key);
+}
+
+__always_inline static khash_key_t *
+__khash_hash_u128(khash_key_t *key, u64 _u64[2])
+{
+	memcpy(key->__key._64, _u64, 2);
+	key->key = hash_128(_u64);
+
+	return (key);
+}
+
+__always_inline static khash_key_t *
+__khash_hash_u160(khash_key_t *key, u64 _u64[2], u32 _u32)
+{
+	u64 _key;
+
+	memcpy(key->__key._64, _u64, 2);
+	key->__key._64[2] = _u32;
+
+	_key =(((u64)hash_128(_u64)) << 32) | _u32;
+
+	key->key = hash_64(_key, 32);
+
+	return (key);
+}
+
+__always_inline static khash_key_t *
+__khash_hash_aligned32(khash_key_t *key, u32 _u32[], int l_u32)
+{
+	key->key = jhash2(_u32, l_u32, JHASH_INITVAL);
+
+	return (key);
+}
+
+/*
+ *
+ */
+
 __always_inline static khash_key_t
 khash_hash_u32(uint32_t _u32)
 {
-	khash_key_t hash = {};
+	khash_key_t key = {};
 
-	hash.__key._64 = _u32;
-	hash.key = hash_64(hash.__key._64, 32);
+	__khash_hash_u32(&key, _u32);
 
-	return (hash);
+	return (key);
 }
 
 __always_inline static khash_key_t
 khash_hash_u64(uint64_t _u64)
 {
-	khash_key_t hash = {};
+	khash_key_t key = {};
 
-	hash.__key._64 = _u64;
-	hash.key = hash_64(hash.__key._64, 32);
+	__khash_hash_u64(&key, _u64);
 
-	return (hash);
+	return (key);
 }
 
 __always_inline static khash_key_t
-khash_hash_aligned32(uint32_t *key, int lkey)
+khash_hash_aligned32(u32 _u32[], int l_u32)
 {
-	khash_key_t hash = {};
+	khash_key_t key = {};
 
-	hash.key = jhash2(key, lkey, JHASH_INITVAL);
+	__khash_hash_aligned32(&key, _u32, l_u32);
 
-	return (hash);
+	return (key);
 }
 
 /*
