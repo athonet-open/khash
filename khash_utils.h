@@ -32,7 +32,6 @@ int khash_proc_interator(khash_key_t hash, void *value, void *user_data);
 
 int khash_key_match(khash_key_t *a, khash_key_t *b);
 
-khash_key_t khash_hash_ipaddr(uint16_t sa_family, uint32_t *addr);
 khash_key_t khash_hash_u32(uint32_t key);
 khash_key_t khash_hash_u64(uint64_t key);
 khash_key_t khash_hash_aligned32(uint32_t *key, int lkey);

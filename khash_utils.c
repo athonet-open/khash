@@ -98,32 +98,3 @@ khash_key_match(khash_key_t *a, khash_key_t *b)
 
 	return (0);
 }
-
-__always_inline static khash_key_t
-khash_hash(void *key, int lkey)
-{
-	khash_key_t hash = {};
-
-	hash.key = jhash(key, lkey, JHASH_INITVAL);
-
-	return (hash);
-}
-
-__always_inline khash_key_t
-khash_hash_ipaddr(uint16_t sa_family, uint32_t *addr)
-{
-	khash_key_t hash = {};
-
-	if (unlikely(!addr))
-		return (hash);
-
-	if (sa_family == AF_INET) {
-		hash.__key._64[0] = *addr;
-	} else {
-		hash.__key._32[0] = addr[0];
-		hash.__key._32[1] = addr[1];
-	}
-	hash.key = hash_64(hash.__key._64[0], 32);
-
-	return (hash);
-}
