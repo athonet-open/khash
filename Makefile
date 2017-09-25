@@ -10,9 +10,9 @@ PATCH          = `cat khash.h |grep -P "\s+KHASH_PATCH\s+" |perl -pe "s/.*KHASH_
 VERSION        = $(MAJOR).$(MINOR).$(PATCH)
 PRJ_FOLDER     = $(PRJ_NAME)-$(VERSION)
 TMP_DIRECTORY  = /usr/src/$(PRJ_FOLDER)
-BUILD_FILES    = khash.h khash_mgmnt.c khash_mgmnt.h khash_utils.c khash_utils.h khash_internal.h Makefile
+BUILD_FILES    = khash.h khash_mgmnt.c khash_internal.h Makefile
 BUILD_SCRIPTS  = dkms.conf dkms.post_build dkms.post_install dkms.post_remove $(MOD_NAME).modprobe.conf $(MOD_NAME).sysconfig $(MOD_NAME).sysctl
-EXP_HEADERS    = khash.h,khash_mgmnt.h,khash_utils.h
+EXP_HEADERS    = khash.h
 
 WARN          := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
 KDIR          := /lib/modules/$(shell uname -r)/build/
@@ -58,7 +58,8 @@ dkms_make_env: dkms_clean_env
 	@echo "cp -v \$$2/build/Module.symvers \$$2/source/\$$1-Module.symvers" >> dkms.post_build
 	@echo "#!/bin/bash" > dkms.post_install
 	@echo "mkdir -p /lib/modules/\$$kernelver/build/include/$(MOD_NAME)" >> dkms.post_install
-	@echo "install -m 644 {$(EXP_HEADERS)} /lib/modules/\$$kernelver/build/include/$(MOD_NAME)/." >> dkms.post_install
+#	@echo "install -m 644 {$(EXP_HEADERS)} /lib/modules/\$$kernelver/build/include/$(MOD_NAME)/." >> dkms.post_install
+	@echo "install -m 644 $(EXP_HEADERS) /lib/modules/\$$kernelver/build/include/$(MOD_NAME)/." >> dkms.post_install
 	@echo "install -m 644 $(MOD_NAME)-Module.symvers /lib/modules/\$$kernelver/build/include/$(MOD_NAME)/." >> dkms.post_install
 	@echo "echo \"Installing headers and exported symbols in /lib/modules/\$$kernelver/build/include/$(MOD_NAME)\"" >> dkms.post_install
 	@echo "if [[ ! \`grep -e \"$(MOD_NAME)\" /etc/modules\` ]]; then" >> dkms.post_install
