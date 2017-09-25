@@ -19,7 +19,7 @@ KDIR          := /lib/modules/$(shell uname -r)/build/
 PWD           := $(shell pwd)
 
 obj-m         := khash.o
-khash-objs    += khash.o khash_mgmnt.o khash_utils.o
+khash-objs    += khash_mgmnt.o
 
 ccflag-y      := -O2 -DMODULE -D__KERNEL__ ${WARN}
 
