@@ -23,14 +23,6 @@
 #ifndef KHASH_INTERNAL_H
 #define KHASH_INTERNAL_H
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
-#include "hashtable.h"
-#else
-#include <linux/hashtable.h>
-#endif
-
-#include <linux/jhash.h>
-
 #define DEFINE_KHASH_STRUCT(__bucket_size__)         \
 		uint32_t          count;                     \
 		uint8_t           ht_is_static;              \

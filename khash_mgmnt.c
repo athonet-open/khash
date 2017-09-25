@@ -37,8 +37,6 @@
 #include <linux/hashtable.h>
 #endif
 
-#include <linux/jhash.h>
-
 #include "khash.h"
 #include "khash_internal.h"
 
@@ -127,6 +125,29 @@ khash_item_value_set(khash_item_t *item, void *value)
 	} while (0)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
+#define KHASH_BUCKET_LOOKUP2(__kh__, _hh_, __item__, __f__)                   \
+	do {                                                                      \
+		struct hlist_node *n;                                                 \
+		KHASH_FOR_EACH_POSSIBLE((__kh__)->ht, __item__, n, hh, (_hh_)->key) { \
+			if (khash_key_match(&(__item__)->hash, (_hh_))) {                 \
+				__f__++;                                                      \
+				break;                                                        \
+			}                                                                 \
+		}                                                                     \
+	} while (0)
+#else
+#define KHASH_BUCKET_LOOKUP2(__kh__, _hh_, __item__, __f__)                   \
+	do {                                                                      \
+		KHASH_FOR_EACH_POSSIBLE((__kh__)->ht, __item__, hh, (_hh_).key) {     \
+			if (khash_key_match(&(__item__)->hash, &(_hh_))) {                \
+				__f__++;                                                      \
+				break;                                                        \
+			}                                                                 \
+		}                                                                     \
+	} while (0)
+#endif
+
 __always_inline static khash_item_t *
 __khash_lookup(khash_t *kh, khash_key_t hash)
 {
@@ -139,6 +160,25 @@ __khash_lookup(khash_t *kh, khash_key_t hash)
 		KHASH_BUCKET_LOOKUP((khash_1k_t *)kh, hash, item, found);
 	else
 		KHASH_BUCKET_LOOKUP((khash_16_t *)kh, hash, item, found);
+
+	if (!found)
+		return (NULL);
+
+	return (item);
+}
+
+__always_inline static khash_item_t *
+__khash_lookup2(khash_t *kh, khash_key_t *hash)
+{
+	khash_item_t *item = NULL;
+	uint8_t found = 0;
+
+	if (likely(kh->bck_size == KHASH_BCK_SIZE_512k))
+		KHASH_BUCKET_LOOKUP2((khash_512k_t *)kh, *hash, item, found);
+	else if (likely(kh->bck_size == KHASH_BCK_SIZE_1k))
+		KHASH_BUCKET_LOOKUP2((khash_1k_t *)kh, *hash, item, found);
+	else
+		KHASH_BUCKET_LOOKUP2((khash_16_t *)kh, *hash, item, found);
 
 	if (!found)
 		return (NULL);
@@ -405,6 +445,31 @@ khash_lookup_fail:
 	return (-1);
 }
 EXPORT_SYMBOL(khash_lookup);
+
+int
+khash_lookup2(khash_t *khash, khash_key_t *hash, void **retval)
+{
+	khash_item_t *item = NULL;
+
+	if (unlikely(!khash))
+		goto khash_lookup_fail;
+
+	item = __khash_lookup2(khash, hash);
+	if (!item)
+		goto khash_lookup_fail;
+
+	if (retval)
+		*retval = (rcu_dereference(item))->value;
+
+	return (0);
+
+khash_lookup_fail:
+	if (retval)
+		*retval = NULL;
+
+	return (-1);
+}
+EXPORT_SYMBOL(khash_lookup2);
 
 int
 khash_size(khash_t *khash)

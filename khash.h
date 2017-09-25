@@ -35,6 +35,13 @@
 		KHASH_STR(KHASH_MINOR) "." KHASH_STR(KHASH_PATCH)
 
 #include <linux/version.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+#include "hashtable.h"
+#else
+#include <linux/hashtable.h>
+#endif
+
+#include <linux/jhash.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,7,0)
 #define GOLDEN_RATIO_32 0x61C88647
@@ -195,6 +202,8 @@ khash_hash_aligned32(u32 _u32[], int l_u32)
 /*
  * KHASH manipulation API - Consolidated
  */
+
+
 typedef struct khash_t khash_t;
 
 khash_t *khash_init(uint32_t bck_size);
@@ -205,6 +214,7 @@ int      khash_size(khash_t *khash);
 int      khash_addentry(khash_t *khash, khash_key_t hash, void *val, gfp_t gfp);
 int      khash_rementry(khash_t *khash, khash_key_t hash, void **retval);
 int      khash_lookup(khash_t *khash, khash_key_t hash, void **retval);
+int      khash_lookup2(khash_t *khash, khash_key_t *hash, void **retval);
 
 typedef  int(*khfunc)(khash_key_t hash, void *value, void *user_data);
 void     khash_foreach(khash_t *khash, khfunc func, void *data);
@@ -231,7 +241,6 @@ khash_proc_interator(khash_key_t hash, void *value, void *user_data)
 /*
  * ITEM manipulation API - Don't relay on that, they might be removed.
  */
-
 typedef struct {
 	struct rcu_head rcu;
 	struct hlist_node hh;
