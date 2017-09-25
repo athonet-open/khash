@@ -31,8 +31,15 @@
 #include <linux/ipv6.h>
 #include <linux/ktime.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+#include "hashtable.h"
+#else
+#include <linux/hashtable.h>
+#endif
+
+#include <linux/jhash.h>
+
 #include "khash.h"
-#include "khash_mgmnt.h"
 #include "khash_internal.h"
 
 #define KHASH_ADD               hash_add_rcu
