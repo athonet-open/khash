@@ -630,12 +630,107 @@ khash_stats_get(khash_t *khash, khash_stats_t *stats)
 }
 EXPORT_SYMBOL(khash_stats_get);
 
+static int
+khash_self_test(void)
+{
+	static khash_t *k = NULL;
+	khash_key_t key = {};
+	u64 p0[2] = {177, 277};
+	u64 p1 = 77;
+	u32 p2 = 7;
+	void *res = NULL;
+
+	k = khash_init(KHASH_BCK_SIZE_16);
+	if (!k) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, hash allocation failure\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u128(&key, p0);
+	if (khash_addentry(k, key, p0, GFP_ATOMIC) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u128 add failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u64(&key, p1);
+	if (khash_addentry(k, key, &p1, GFP_ATOMIC) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u64 add failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u32(&key, p2);
+	if (khash_addentry(k, key, &p2, GFP_ATOMIC) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u32 add failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u128(&key, p0);
+	if (khash_lookup2(k, &key, &res) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u128 lookup failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u64(&key, p1);
+	if (khash_lookup2(k, &key, &res) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u64 lookup failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u32(&key, p2);
+	if (khash_lookup2(k, &key, &res) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u32 lookup failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u64(&key, p1);
+	if (khash_rementry(k, key, NULL) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u64 remove failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u64(&key, p1);
+	if (!khash_lookup2(k, &key, &res)) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u64 present after remove\n");
+		goto exit_failure;
+	}
+
+	khash_flush(k);
+
+	__khash_hash_u128(&key, p0);
+	if (!khash_lookup2(k, &key, &res)) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u128 present after flush\n");
+		goto exit_failure;
+	}
+
+	khash_term(k);
+
+	printk(KERN_INFO "[KHASH] Test succeed\n");
+
+	return (0);
+
+exit_failure:
+
+	printk(KERN_INFO "[KHASH] ERROR - Test failed\n");
+
+	if (k) {
+		khash_flush(k);
+		khash_term(k);
+	}
+
+	return (-1);
+}
+
 int
 khash_init_module(void)
 {
 	printk(KERN_INFO "[%s] module loaded\n", KHASH_VERSION_STR);
 
-	return 0;
+	if (khash_self_test() < 0) {
+		printk(KERN_INFO "[%s] module unloaded\n", KHASH_VERSION_STR);
+		return (-ENOMEM);
+	}
+
+	return (0);
 }
 
 void
