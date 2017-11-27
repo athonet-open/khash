@@ -1,0 +1,34 @@
+[khash 1.4.0] Changelog
+
+* Add support to keys up to 192 bits long
+
+[khash 1.3.3] Changelog
+
+* [MK] fixed issue with superuser base.sh
+
+[khash 1.3.2] Changelog
+
+* [MK] Added build scripts to tools
+
+[khash 1.3.1] Changelog
+
+* Update Make install commands to generate and install DKMS deb
+
+[khash 1.3.0] Changelog
+
+* Allow to reserve memory for a khash item without inserting it in a khash
+  (Useful in case of insertion in critical regions)
+
+[khash 1.2.0] Changelog
+
+* Improve log on module load and unload
+
+[khash 1.1.0] Changelog
+
+* Update headers to fulfil legal department requirements
+* Update DKMS packet creation
+
+[khash 1.0.0] Changelog
+
+* Add license and reame files
+* First commit

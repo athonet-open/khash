@@ -6,6 +6,7 @@ Copyright (C) 2016-2017 - Athonet s.r.l. - All Rights Reserved
 
 Authors:
         Paolo Missiaggia, <paolo.missiaggia@athonet.com>
+        Paolo Missiaggia, <paolo.ratm@gmail.com>
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License version 2 as published by
@@ -23,14 +24,4 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 ## About
 
 An ultra fast hash table in kernel space based on hashtable.h
-
-
-
-
-
-
-
-
-
-
 
