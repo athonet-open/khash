@@ -5,6 +5,7 @@
  *
  * Authors:
  *         Paolo Missiaggia, <paolo.Missiaggia@athonet.com>
+ *         Paolo Missiaggia, <paolo.ratm@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
@@ -31,8 +32,13 @@
 #include <linux/ipv6.h>
 #include <linux/ktime.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+#include "hashtable.h"
+#else
+#include <linux/hashtable.h>
+#endif
+
 #include "khash.h"
-#include "khash_mgmnt.h"
 #include "khash_internal.h"
 
 #define KHASH_ADD               hash_add_rcu
@@ -120,6 +126,29 @@ khash_item_value_set(khash_item_t *item, void *value)
 	} while (0)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
+#define KHASH_BUCKET_LOOKUP2(__kh__, _hh_, __item__, __f__)                   \
+	do {                                                                      \
+		struct hlist_node *n;                                                 \
+		KHASH_FOR_EACH_POSSIBLE((__kh__)->ht, __item__, n, hh, (_hh_)->key) { \
+			if (khash_key_match(&(__item__)->hash, (_hh_))) {                 \
+				__f__++;                                                      \
+				break;                                                        \
+			}                                                                 \
+		}                                                                     \
+	} while (0)
+#else
+#define KHASH_BUCKET_LOOKUP2(__kh__, _hh_, __item__, __f__)                   \
+	do {                                                                      \
+		KHASH_FOR_EACH_POSSIBLE((__kh__)->ht, __item__, hh, (_hh_).key) {     \
+			if (khash_key_match(&(__item__)->hash, &(_hh_))) {                \
+				__f__++;                                                      \
+				break;                                                        \
+			}                                                                 \
+		}                                                                     \
+	} while (0)
+#endif
+
 __always_inline static khash_item_t *
 __khash_lookup(khash_t *kh, khash_key_t hash)
 {
@@ -132,6 +161,25 @@ __khash_lookup(khash_t *kh, khash_key_t hash)
 		KHASH_BUCKET_LOOKUP((khash_1k_t *)kh, hash, item, found);
 	else
 		KHASH_BUCKET_LOOKUP((khash_16_t *)kh, hash, item, found);
+
+	if (!found)
+		return (NULL);
+
+	return (item);
+}
+
+__always_inline static khash_item_t *
+__khash_lookup2(khash_t *kh, khash_key_t *hash)
+{
+	khash_item_t *item = NULL;
+	uint8_t found = 0;
+
+	if (likely(kh->bck_size == KHASH_BCK_SIZE_512k))
+		KHASH_BUCKET_LOOKUP2((khash_512k_t *)kh, *hash, item, found);
+	else if (likely(kh->bck_size == KHASH_BCK_SIZE_1k))
+		KHASH_BUCKET_LOOKUP2((khash_1k_t *)kh, *hash, item, found);
+	else
+		KHASH_BUCKET_LOOKUP2((khash_16_t *)kh, *hash, item, found);
 
 	if (!found)
 		return (NULL);
@@ -400,6 +448,31 @@ khash_lookup_fail:
 EXPORT_SYMBOL(khash_lookup);
 
 int
+khash_lookup2(khash_t *khash, khash_key_t *hash, void **retval)
+{
+	khash_item_t *item = NULL;
+
+	if (unlikely(!khash))
+		goto khash_lookup_fail;
+
+	item = __khash_lookup2(khash, hash);
+	if (!item)
+		goto khash_lookup_fail;
+
+	if (retval)
+		*retval = (rcu_dereference(item))->value;
+
+	return (0);
+
+khash_lookup_fail:
+	if (retval)
+		*retval = NULL;
+
+	return (-1);
+}
+EXPORT_SYMBOL(khash_lookup2);
+
+int
 khash_size(khash_t *khash)
 {
 	if (unlikely(!khash))
@@ -557,12 +630,107 @@ khash_stats_get(khash_t *khash, khash_stats_t *stats)
 }
 EXPORT_SYMBOL(khash_stats_get);
 
+static int
+khash_self_test(void)
+{
+	static khash_t *k = NULL;
+	khash_key_t key = {};
+	u64 p0[2] = {177, 277};
+	u64 p1 = 77;
+	u32 p2 = 7;
+	void *res = NULL;
+
+	k = khash_init(KHASH_BCK_SIZE_16);
+	if (!k) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, hash allocation failure\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u128(&key, p0);
+	if (khash_addentry(k, key, p0, GFP_ATOMIC) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u128 add failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u64(&key, p1);
+	if (khash_addentry(k, key, &p1, GFP_ATOMIC) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u64 add failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u32(&key, p2);
+	if (khash_addentry(k, key, &p2, GFP_ATOMIC) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u32 add failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u128(&key, p0);
+	if (khash_lookup2(k, &key, &res) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u128 lookup failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u64(&key, p1);
+	if (khash_lookup2(k, &key, &res) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u64 lookup failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u32(&key, p2);
+	if (khash_lookup2(k, &key, &res) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u32 lookup failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u64(&key, p1);
+	if (khash_rementry(k, key, NULL) < 0) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u64 remove failed\n");
+		goto exit_failure;
+	}
+
+	__khash_hash_u64(&key, p1);
+	if (!khash_lookup2(k, &key, &res)) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u64 present after remove\n");
+		goto exit_failure;
+	}
+
+	khash_flush(k);
+
+	__khash_hash_u128(&key, p0);
+	if (!khash_lookup2(k, &key, &res)) {
+		printk(KERN_INFO "[KHASH] ERROR - Test, u128 present after flush\n");
+		goto exit_failure;
+	}
+
+	khash_term(k);
+
+	printk(KERN_INFO "[KHASH] Test succeed\n");
+
+	return (0);
+
+exit_failure:
+
+	printk(KERN_INFO "[KHASH] ERROR - Test failed\n");
+
+	if (k) {
+		khash_flush(k);
+		khash_term(k);
+	}
+
+	return (-1);
+}
+
 int
 khash_init_module(void)
 {
 	printk(KERN_INFO "[%s] module loaded\n", KHASH_VERSION_STR);
 
-	return 0;
+	if (khash_self_test() < 0) {
+		printk(KERN_INFO "[%s] module unloaded\n", KHASH_VERSION_STR);
+		return (-ENOMEM);
+	}
+
+	return (0);
 }
 
 void
