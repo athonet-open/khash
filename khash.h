@@ -123,6 +123,8 @@ khash_key_match(khash_key_t *a, khash_key_t *b)
 __always_inline static khash_key_t *
 __khash_hash_u32(khash_key_t *key, u32 _u32)
 {
+	memset(key, 0, sizeof(*key));
+
 	key->__key._64[0] = _u32;
 	key->key = hash_64(key->__key._64[0], 32);
 
@@ -132,6 +134,8 @@ __khash_hash_u32(khash_key_t *key, u32 _u32)
 __always_inline static khash_key_t *
 __khash_hash_u64(khash_key_t *key, u64 _u64)
 {
+	memset(key, 0, sizeof(*key));
+
 	key->__key._64[0] = _u64;
 	key->key = hash_64(key->__key._64[0], 32);
 
@@ -141,6 +145,8 @@ __khash_hash_u64(khash_key_t *key, u64 _u64)
 __always_inline static khash_key_t *
 __khash_hash_u128(khash_key_t *key, u64 _u64[2])
 {
+	memset(key, 0, sizeof(*key));
+
 	memcpy(key->__key._64, _u64, 16);
 	key->key = hash_128(_u64);
 
@@ -151,6 +157,8 @@ __always_inline static khash_key_t *
 __khash_hash_u160(khash_key_t *key, u64 _u64[2], u32 _u32)
 {
 	u64 _key;
+
+	memset(key, 0, sizeof(*key));
 
 	memcpy(key->__key._64, _u64, 16);
 	key->__key._64[2] = _u32;
